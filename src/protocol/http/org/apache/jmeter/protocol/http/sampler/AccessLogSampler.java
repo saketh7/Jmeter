@@ -65,7 +65,9 @@ import org.apache.log.Logger;
  *
  */
 public class AccessLogSampler extends HTTPSampler implements TestBean,ThreadListener {
-    private static final Logger log = LoggingManager.getLoggerForClass();
+    private AccessLogSamplerProduct accessLogSamplerProduct = new AccessLogSamplerProduct();
+
+	public static final Logger log = LoggingManager.getLoggerForClass();
 
     private static final long serialVersionUID = 232L; // Remember to change this when the class changes ...
 
@@ -75,7 +77,7 @@ public class AccessLogSampler extends HTTPSampler implements TestBean,ThreadList
     private transient LogParser PARSER = null;
 
     // NOTUSED private Class PARSERCLASS = null;
-    private String logFile, parserClassName, filterClassName;
+    private String logFile, parserClassName;
 
     private transient Filter filter;
 
@@ -123,7 +125,7 @@ public class AccessLogSampler extends HTTPSampler implements TestBean,ThreadList
      * method.
      */
     public SampleResult sampleWithParser() {
-        initFilter();
+        accessLogSamplerProduct.initFilter(this);
         instantiateParser();
         SampleResult res = null;
         try {
@@ -216,7 +218,7 @@ public class AccessLogSampler extends HTTPSampler implements TestBean,ThreadList
      * @return Returns the filterClassName.
      */
     public String getFilterClassName() {
-        return filterClassName;
+        return accessLogSamplerProduct.getFilterClassName();
     }
 
     /**
@@ -224,7 +226,7 @@ public class AccessLogSampler extends HTTPSampler implements TestBean,ThreadList
      *            The filterClassName to set.
      */
     public void setFilterClassName(String filterClassName) {
-        this.filterClassName = filterClassName;
+        accessLogSamplerProduct.setFilterClassName(filterClassName);
     }
 
     /**
@@ -281,16 +283,6 @@ public class AccessLogSampler extends HTTPSampler implements TestBean,ThreadList
         super();
     }
 
-    protected void initFilter() {
-        if (filter == null && filterClassName != null && filterClassName.length() > 0) {
-            try {
-                filter = (Filter) Class.forName(filterClassName).newInstance();
-            } catch (Exception e) {
-                log.warn("Couldn't instantiate filter '" + filterClassName + "'", e);
-            }
-        }
-    }
-
     /**
      * {@inheritDoc}
      */
@@ -298,11 +290,11 @@ public class AccessLogSampler extends HTTPSampler implements TestBean,ThreadList
     public Object clone() {
         AccessLogSampler s = (AccessLogSampler) super.clone();
         if (started) {
-            if (filterClassName != null && filterClassName.length() > 0) {
+            if (accessLogSamplerProduct.getFilterClassName() != null && accessLogSamplerProduct.getFilterClassName().length() > 0) {
 
                 try {
-                    if (TestCloneable.class.isAssignableFrom(Class.forName(filterClassName))) {
-                        initFilter();
+                    if (TestCloneable.class.isAssignableFrom(Class.forName(accessLogSamplerProduct.getFilterClassName()))) {
+                        accessLogSamplerProduct.initFilter(this);
                         s.filter = (Filter) ((TestCloneable) filter).clone();
                     }
                     if(TestCloneable.class.isAssignableFrom(Class.forName(parserClassName)))
@@ -356,4 +348,12 @@ public class AccessLogSampler extends HTTPSampler implements TestBean,ThreadList
             ((ThreadListener)filter).threadFinished();
         }
     }
+
+	public void setFilter(Filter filter) {
+		this.filter = filter;
+	}
+
+	public Filter getFilter() {
+		return filter;
+	}
 }

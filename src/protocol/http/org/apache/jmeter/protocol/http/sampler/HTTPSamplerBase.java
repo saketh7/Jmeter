@@ -96,9 +96,13 @@ import org.apache.oro.text.regex.Perl5Matcher;
 public abstract class HTTPSamplerBase extends AbstractSampler
     implements TestStateListener, TestIterationListener, ThreadListener, HTTPConstantsInterface {
 
-    private static final long serialVersionUID = 240L;
+    private transient HTTPSamplerBaseProduct2 hTTPSamplerBaseProduct2 = new HTTPSamplerBaseProduct2();
 
-    private static final Logger log = LoggingManager.getLoggerForClass();
+	private transient HTTPSamplerBaseProduct hTTPSamplerBaseProduct = new HTTPSamplerBaseProduct();
+
+	private static final long serialVersionUID = 240L;
+
+    public static final Logger log = LoggingManager.getLoggerForClass();
 
     private static final Set<String> APPLIABLE_CONFIG_CLASSES = new HashSet<String>(
             Arrays.asList(new String[]{
@@ -158,7 +162,7 @@ public abstract class HTTPSamplerBase extends AbstractSampler
 
     static final String PROTOCOL_FILE = "file"; // $NON-NLS-1$
 
-    private static final String DEFAULT_PROTOCOL = HTTPConstants.PROTOCOL_HTTP;
+    public static final String DEFAULT_PROTOCOL = HTTPConstants.PROTOCOL_HTTP;
 
     public static final String URL = "HTTPSampler.URL"; // $NON-NLS-1$
 
@@ -349,12 +353,7 @@ public abstract class HTTPSamplerBase extends AbstractSampler
      * an empty Parameter name.
      */
     public boolean getSendFileAsPostBody() {
-        // If there is one file with no parameter name, the file will
-        // be sent as post body.
-        HTTPFileArg[] files = getHTTPFiles();
-        return (files.length == 1)
-            && (files[0].getPath().length() > 0)
-            && (files[0].getParamName().length() == 0);
+        return hTTPSamplerBaseProduct2.getSendFileAsPostBody(this);
     }
 
     /**
@@ -388,13 +387,7 @@ public abstract class HTTPSamplerBase extends AbstractSampler
      * @return true if multipart/form-data should be used and method is POST
      */
     public boolean getUseMultipartForPost(){
-        // We use multipart if we have been told so, or files are present
-        // and the files should not be send as the post body
-        HTTPFileArg[] files = getHTTPFiles();
-        if(HTTPConstants.POST.equals(getMethod()) && (getDoMultipartPost() || (files.length > 0 && !getSendFileAsPostBody()))) {
-            return true;
-        }
-        return false;
+        return hTTPSamplerBaseProduct2.getUseMultipartForPost(this);
     }
 
     public void setProtocol(String value) {
@@ -407,11 +400,7 @@ public abstract class HTTPSamplerBase extends AbstractSampler
      * @return the protocol
      */
     public String getProtocol() {
-        String protocol = getPropertyAsString(PROTOCOL);
-        if (protocol == null || protocol.length() == 0 ) {
-            return DEFAULT_PROTOCOL;
-        }
-        return protocol;
+        return hTTPSamplerBaseProduct2.getProtocol(this);
     }
 
     /**
@@ -453,8 +442,7 @@ public abstract class HTTPSamplerBase extends AbstractSampler
     }
 
     public String getPath() {
-        String p = getPropertyAsString(PATH);
-        return encodeSpaces(p);
+        return hTTPSamplerBaseProduct.getPath(this);
     }
 
     public void setFollowRedirects(boolean value) {
@@ -675,33 +663,12 @@ public abstract class HTTPSamplerBase extends AbstractSampler
     }
 
     /**
-     * Get the port number from the port string, allowing for trailing blanks.
-     *
-     * @return port number or UNSPECIFIED_PORT (== 0)
-     */
-    public int getPortIfSpecified() {
-        String port_s = getPropertyAsString(PORT, UNSPECIFIED_PORT_AS_STRING);
-        try {
-            return Integer.parseInt(port_s.trim());
-        } catch (NumberFormatException e) {
-            return UNSPECIFIED_PORT;
-        }
-    }
-
-    /**
      * Tell whether the default port for the specified protocol is used
      *
      * @return true if the default port number for the protocol is used, false otherwise
      */
     public boolean isProtocolDefaultPort() {
-        final int port = getPortIfSpecified();
-        final String protocol = getProtocol();
-        if (port == UNSPECIFIED_PORT ||
-                (HTTPConstants.PROTOCOL_HTTP.equalsIgnoreCase(protocol) && port == HTTPConstants.DEFAULT_HTTP_PORT) ||
-                (HTTPConstants.PROTOCOL_HTTPS.equalsIgnoreCase(protocol) && port == HTTPConstants.DEFAULT_HTTPS_PORT)) {
-            return true;
-        }
-        return false;
+        return hTTPSamplerBaseProduct2.isProtocolDefaultPort(this);
     }
 
     /**
@@ -710,19 +677,7 @@ public abstract class HTTPSamplerBase extends AbstractSampler
      * @return the port number, with default applied if required.
      */
     public int getPort() {
-        final int port = getPortIfSpecified();
-        if (port == UNSPECIFIED_PORT) {
-            String prot = getProtocol();
-            if (HTTPConstants.PROTOCOL_HTTPS.equalsIgnoreCase(prot)) {
-                return HTTPConstants.DEFAULT_HTTPS_PORT;
-            }
-            if (!HTTPConstants.PROTOCOL_HTTP.equalsIgnoreCase(prot)) {
-                log.warn("Unexpected protocol: "+prot);
-                // TODO - should this return something else?
-            }
-            return HTTPConstants.DEFAULT_HTTP_PORT;
-        }
-        return port;
+        return hTTPSamplerBaseProduct2.getPort(this);
     }
 
     public void setDomain(String value) {
@@ -927,14 +882,14 @@ public abstract class HTTPSamplerBase extends AbstractSampler
      */
     public URL getUrl() throws MalformedURLException {
         StringBuilder pathAndQuery = new StringBuilder(100);
-        String path = this.getPath();
+        String path = hTTPSamplerBaseProduct.getPath(this);
         // Hack to allow entire URL to be provided in host field
         if (path.startsWith(HTTP_PREFIX)
          || path.startsWith(HTTPS_PREFIX)){
             return new URL(path);
         }
         String domain = getDomain();
-        String protocol = getProtocol();
+        String protocol = hTTPSamplerBaseProduct2.getProtocol(this);
         if (PROTOCOL_FILE.equalsIgnoreCase(protocol)) {
             domain=null; // allow use of relative file URLs
         } else {
@@ -961,10 +916,10 @@ public abstract class HTTPSamplerBase extends AbstractSampler
             }
         }
         // If default port for protocol is used, we do not include port in URL
-        if(isProtocolDefaultPort()) {
+        if(hTTPSamplerBaseProduct2.isProtocolDefaultPort(this)) {
             return new URL(protocol, domain, pathAndQuery.toString());
         }
-        return new URL(protocol, domain, getPort(), pathAndQuery.toString());
+        return new URL(protocol, domain, hTTPSamplerBaseProduct2.getPort(this), pathAndQuery.toString());
     }
 
     /**
@@ -1242,7 +1197,7 @@ public abstract class HTTPSamplerBase extends AbstractSampler
                         log.warn("Null URL detected (should not happen)");
                     } else {
                         String urlstr = url.toString();
-                        String urlStrEnc=encodeSpaces(urlstr);
+                        String urlStrEnc=hTTPSamplerBaseProduct.encodeSpaces(urlstr);
                         if (!urlstr.equals(urlStrEnc)){// There were some spaces in the URL
                             try {
                                 url = new URL(urlStrEnc);
@@ -1395,11 +1350,6 @@ public abstract class HTTPSamplerBase extends AbstractSampler
         return parsersForType.get(ct);
     }
 
-    // TODO: make static?
-    protected String encodeSpaces(String path) {
-        return JOrphanUtils.replaceAllChars(path, ' ', "%20"); // $NON-NLS-1$
-    }
-
     /**
      * {@inheritDoc}
      */
@@ -1472,7 +1422,7 @@ public abstract class HTTPSamplerBase extends AbstractSampler
             // Browsers seem to tolerate Location headers with spaces,
             // replacing them automatically with %20. We want to emulate
             // this behaviour.
-            location = encodeSpaces(location);
+            location = hTTPSamplerBaseProduct.encodeSpaces(location);
             if (log.isDebugEnabled()) {
                 log.debug("Location after /. and space transforms: " + location);
             }
