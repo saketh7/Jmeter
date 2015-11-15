@@ -1139,7 +1139,10 @@ public abstract class HTTPSamplerBase extends AbstractSampler
         SampleResult res = null;
         try {
             res = sample(getUrl(), getMethod(), false, 0);
+            if(res != null) {
+              
             res.setSampleLabel(getName());
+            }
             return res;
         } catch (Exception e) {
             return errorResult(e, new HTTPSampleResult());
@@ -1206,9 +1209,10 @@ public abstract class HTTPSamplerBase extends AbstractSampler
         // Iterate through the URLs and download each image:
         if (urls != null && urls.hasNext()) {
             if (container == null) {
+            	
                 // TODO needed here because currently done on sample completion in JMeterThread,
                 // but that only catches top-level samples.
-                res.setThreadName(Thread.currentThread().getName());
+             //   res.setThreadName(Thread.currentThread().getName());
                 container = new HTTPSampleResult(res);
                 container.addRawSubResult(res);
             }
@@ -1484,6 +1488,13 @@ public abstract class HTTPSamplerBase extends AbstractSampler
                     log.debug("Location as URL: " + url.toString());
                 }
                 lastRes = sample(url, method, true, frameDepth);
+                HTTPSampleResult tempRes = sample(url, method, true, frameDepth);
+                if(tempRes != null) {
+                    lastRes = tempRes;
+                } else {
+                    // Last url was in cache so tempRes is null
+                    break;
+                }
             } catch (MalformedURLException e) {
                 errorResult(e, lastRes);
                 // The redirect URL we got was not a valid URL
